@@ -70,7 +70,7 @@ def checkjwt(jwt):
 if __name__ == '__main__':
     if (len(sys.argv) != 4):
         sys.stderr.write(f'Usage: {sys.argv[0]} startdate enddate JWT\n')
-        sys.stderr.write('\nDates must be in the format YYYY-MM-DD. Omit leading zeros.\n')
+        sys.stderr.write('\nDates must be in the format YYYY-MM-DD.\n')
         sys.exit(1)
 
     startdate = datetime.date(*map(int, sys.argv[1].split('-')))

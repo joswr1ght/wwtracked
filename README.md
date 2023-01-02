@@ -14,8 +14,7 @@ You can use this script to generate a report of the foods you've tracked as a si
 ## Usage
 
 Using [Python](https://www.python.org/), run the `wwtracked.py` script, specifying a start date and an end date.
-The dates must be in the format YYYY-MM-DD.
-Do not supply a leading zero for months or days (e.g., use 2022-9-5, not 2022-09-05).
+The dates must be in the format YYYY-MM-DD (with or without leading zeros).
 
 You must also specify your Weight Watchers Java Web Token (JWT) as the third command-line argument.
 In the GIF example I include the JWT as a shell variable using `$JWT`.
