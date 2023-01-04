@@ -202,28 +202,28 @@ if __name__ == '__main__':
         print(f'\n\n## {date}')
 
         try:
-            print('\n### Breakfast')
+            print('\n### Breakfast\n')
             morning = trackedday['today']['trackedFoods']['morning']
             printfood(morning)
         except KeyError:
             pass
 
         try:
-            print('\n### Lunch')
+            print('\n### Lunch\n')
             midday = trackedday['today']['trackedFoods']['midday']
             printfood(midday)
         except KeyError:
             pass
 
         try:
-            print('\n### Dinner')
+            print('\n### Dinner\n')
             evening = trackedday['today']['trackedFoods']['evening']
             printfood(evening)
         except KeyError:
             pass
 
         try:
-            print('\n### Snacks')
+            print('\n### Snacks\n')
             anytime = trackedday['today']['trackedFoods']['anytime']
             printfood(anytime)
         except KeyError:
