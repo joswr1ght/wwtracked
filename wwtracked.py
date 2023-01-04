@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-E', '-U', '--email', help='Specify the login email address')
+    group.add_argument('-E', '--email', help='Specify the login email address')
     group.add_argument('-J', '--jwt', help='Specify the JWT')
     parser.add_argument('-s', '--start', required=True, help='Start date as YYYY-MM-DD')
     parser.add_argument('-e', '--end', required=True, help='End date as YYYY-MM-DD')
