@@ -4,13 +4,12 @@ import sys
 import datetime
 import requests
 import json
+import random
 import pdb
 import logging
-import http.client as http_client
+from urllib import parse
 
 
-# WW API endpoint with date at the end in the format YYYY-MM-DD
-ENDPOINT = 'https://cmx.weightwatchers.com/api/v3/cmx/operations/composed/members/~/my-day'
 
 """
 Return a list of date strings in the format YYYY-MM-DD
@@ -57,6 +56,7 @@ Validate JWT. Return False if not valid.
 """
 def checkjwt(jwt):
     assert type(jwt) == str, 'JWT must be type str'
+
     if jwt[0:3] != 'eyJ' and jwt[0:10] != 'Bearer eyJ':
         return False
     # With the Bearer prefix, the JWT I'm seeing is 1095 characters. Check for length
@@ -65,6 +65,104 @@ def checkjwt(jwt):
         return False
 
     return True
+
+
+"""
+Login to the WW website and return the JWT.
+
+The WW login process requires 2 steps:
+
+    1. Send username and password in JSON POST to
+       auth.weightwatchers.com/login-apis/v1/authenticate.  In the server
+       response, obtain the tokenId in the body response JSON blob.
+    2. Send tokenId value as `wwAuth2` cookie in GET request to
+       https://auth.weightwatchers.com/openam/oauth2/authorize with several URL
+       parameters including a client-side selected nonce.  Server will return a
+       HTTP/302 Found response with a Location header. The id_token parameter in
+       the Location header is the JWT used for subsequent API access.
+
+This function calls these step steps as login1() and login2().
+
+TODO: When the server response isn't what we expect, we sys.exit(-1), but
+ideally this should raise an exception instead.
+
+Returns JWT or None.
+"""
+def login(username, password):
+    assert type(username) == str, 'Username must be a string'
+    assert type(password) == str, 'Password must be a string'
+
+    tokenid = login1(username, password)
+    if tokenid == None:
+        return None
+
+    return login2(tokenid)
+
+
+
+"""
+Login with username and password to retrieve the tokenId value.
+
+Return tokenid or None
+"""
+def login1(username, password):
+    assert type(username) == str, 'Username must be a string'
+    assert type(password) == str, 'Password must be a string'
+
+    tokenid = None
+
+    authrequest = {
+            'username'        : username,
+            'password'        : password,
+            'rememberMe'      : False,
+            'usernameEncoded' : False,
+            'retry'           : False
+    }
+
+    authheader = {
+            'Content-Type' : 'application/json'
+    }
+
+    url = 'https://auth.weightwatchers.com/login-apis/v1/authenticate'
+    response = requests.post(url, headers=authheader, json=authrequest)
+    if (response.status_code != 200):
+        sys.stderr.write(f'ERROR: Invalid response from login step 1 endpoint ({response.status_code}). ')
+        sys.stderr.write('Make sure you have the correct username and password.\n')
+        sys.exit(-1)
+
+    try:
+        responsedata = json.loads(response.content)
+        tokenid = responsedata['data']['tokenId']
+    except ValueError:
+        sys.stderr.write('ERROR: Missing tokenId in response data (API changed?)\n')
+        sys.exit(-1)
+
+    return tokenid
+
+
+"""
+Complete step 2 of login with tokenid as wwAuth2 cookie.
+
+Return id_token/JWT.
+"""
+def login2(tokenid):
+    assert type(tokenid) == str, 'tokenid must be a string'
+
+    nonce = hex(random.getrandbits(128))[2:]
+    url = f'https://auth.weightwatchers.com/openam/oauth2/authorize?response_type=id_token&client_id=webCMX&redirect_uri=https%3A%2F%2Fcmx.weightwatchers.com%2Fauth&nonce={nonce}'
+    cookies = {
+        'wwAuth2': f'{tokenid}'
+    }
+
+    response = requests.get(url, cookies=cookies, allow_redirects=False)
+    if (response.status_code != 302):
+        sys.stderr.write('ERROR: Unexpected response status code (API changed?)\n')
+        exit(-1)
+
+    # The redirect location has the JWT
+    redirecturl = response.headers['Location']
+    responsedata = dict(parse.parse_qsl(parse.urlsplit(redirecturl).fragment))
+    return responsedata['id_token']
 
 
 if __name__ == '__main__':
@@ -91,7 +189,9 @@ if __name__ == '__main__':
     print(f'# Weight Watchers Tracked Food Report\n\n> {sys.argv[1]} - {sys.argv[2]}\n')
 
     for date in daterange(startdate, enddate):
-        url = f'{ENDPOINT}/{date}'
+        # WW API endpoint with date at the end in the format YYYY-MM-DD
+        endpointurl = 'https://cmx.weightwatchers.com/api/v3/cmx/operations/composed/members/~/my-day'
+        url = f'{endpointurl}/{date}'
         response = requests.get(url, headers=authheader)
         if (response.status_code != 200):
             sys.stderr.write(f'ERROR: Invalid response from weightwatchers.com API ({response.status_code}). ')
