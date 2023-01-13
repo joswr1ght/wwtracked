@@ -15,8 +15,6 @@ ENDPOINT = 'https://cmx.weightwatchers.com/api/v3/cmx/operations/composed/member
 """
 Return a list of date strings in the format YYYY-MM-DD
 """
-
-
 def daterange(date1, date2):
     assert type(date1) == datetime.date, 'Dates must be datetime.date objects'
     assert type(date2) == datetime.date, 'Dates must be datetime.date objects'
@@ -33,8 +31,6 @@ Using the food elements for morning, midday, evening, or anytime,
 display the food name and portion (if available) as a Markdown
 bulleted item.
 """
-
-
 def printfood(foods):
     assert type(foods) == list, 'foods must be a list'
 
@@ -63,8 +59,6 @@ Takes the food entry passed to it and calculates the nutrition of the
 food entry by matching the serving type of the entry to the nutritional
 data from WW and multiplying by the entry serving size. Returns dict of data  
 """
-
-
 def getfoodentrynutrition(foodentry):
     if foodentry['sourceType'] != 'MEMBERFOODQUICK':  # ignore quick add items
         data = {'name': foodentry['name'], 'id': foodentry['_id'], 'entryId': foodentry['entryId'],
@@ -129,6 +123,9 @@ def getfoodentrynutrition(foodentry):
         return data
 
 
+"""
+Takes the array of food nutrition dictionaries and writes to CSV  
+"""
 def writenutritiondata(nutritionarr):
     fields = ['Date', 'When', 'Food', 'Calories', 'Fat', 'Saturated Fat', 'Sodium', 'Carbohydrates', 'Fiber', 'Sugars',
               'Added Sugar', 'Protein']
@@ -146,18 +143,14 @@ def writenutritiondata(nutritionarr):
                                     item['fat'], item['saturatedFat'], item['sodium'], item['carbs'], item['fiber'],
                                     item['sugar'], item['addedSugar'], item['protein']])
 
-        # print(f'Nutrition data written to "{filename}"')
         sys.stderr.write(f'Nutrition data written to "{filename}"\n')
     except PermissionError:
         sys.stderr.write(f'ERROR: Could not save nutrition data, ensure "{filename}" is not already open.\n')
-        # print(f'Could not save nutrition data, ensure "{filename}" is not already open.')
 
 
 """
 Validate JWT. Return False if not valid.
 """
-
-
 def checkjwt(jwt):
     assert type(jwt) == str, 'JWT must be type str'
     if jwt[0:3] != 'eyJ' and jwt[0:10] != 'Bearer eyJ':
