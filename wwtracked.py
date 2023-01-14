@@ -272,7 +272,7 @@ if __name__ == '__main__':
     group.add_argument('-J', '--jwt', help='Specify the JWT')
     parser.add_argument('-s', '--start', required=True, help='Start date as YYYY-MM-DD')
     parser.add_argument('-e', '--end', required=True, help='End date as YYYY-MM-DD')
-    parser.add_argument('-n', '--nutrition', help='Produce a CSV report of nutritional data')
+    parser.add_argument('-n', '--nutrition', action='store_true', help='Produce a CSV report of nutritional data')
     args = parser.parse_args()
 
     if (args.email == None and args.jwt == None):
