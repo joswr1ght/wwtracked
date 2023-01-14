@@ -5,12 +5,13 @@ import datetime
 import requests
 import json
 import csv
-import pdb
+import random
 import logging
-import http.client as http_client
+import getpass
+import argparse
+from urllib import parse
+import pdb
 
-# WW API endpoint with date at the end in the format YYYY-MM-DD
-ENDPOINT = 'https://cmx.weightwatchers.com/api/v3/cmx/operations/composed/members/~/my-day'
 
 """
 Return a list of date strings in the format YYYY-MM-DD
@@ -52,6 +53,7 @@ def printfood(foods):
             # Quick add foods lack a portion size and portion name
             suffix = ''
         print(f'* {foodname}{suffix}')
+
 
 
 """
@@ -153,36 +155,168 @@ Validate JWT. Return False if not valid.
 """
 def checkjwt(jwt):
     assert type(jwt) == str, 'JWT must be type str'
+
     if jwt[0:3] != 'eyJ' and jwt[0:10] != 'Bearer eyJ':
         return False
     # With the Bearer prefix, the JWT I'm seeing is 1095 characters. Check for length
-    # at least 1000 to give us a sanity check of JWT
-    if len(jwt) < 1000:
+    # at least 900 to give us a sanity check of JWT
+    if len(jwt) < 900:
         return False
 
     return True
 
 
-if __name__ == '__main__':
-    if (len(sys.argv) < 4 or len(sys.argv) > 5):
-        sys.stderr.write(f'Usage: {sys.argv[0]} startdate enddate JWT\n')
-        sys.stderr.write('\nDates must be in the format YYYY-MM-DD.\n')
-        sys.exit(1)
+"""
+Login to the WW website and return the JWT using the email address and password.
 
-    startdate = datetime.date(*map(int, sys.argv[1].split('-')))
-    enddate = datetime.date(*map(int, sys.argv[2].split('-')))
+The WW login process requires 2 steps:
 
-    # Allow JWT to include 'Bearer ' prefix
-    if (sys.argv[3][0:7] == 'Bearer '):
-        jwt = sys.argv[3][7:]
-    else:
-        jwt = sys.argv[3]
+    1. Send email and password in JSON POST to
+       auth.weightwatchers.com/login-apis/v1/authenticate.  In the server
+       response, obtain the tokenId in the body response JSON blob.
+    2. Send tokenId value as `wwAuth2` cookie in GET request to
+       https://auth.weightwatchers.com/openam/oauth2/authorize with several URL
+       parameters including a client-side selected nonce.  Server will return a
+       HTTP/302 Found response with a Location header. The id_token parameter in
+       the Location header is the JWT used for subsequent API access.
 
-    if (checkjwt(jwt) == False):
-        sys.stderr.write('ERROR: Invalid JWT. Get a valid JWT from your logged-in Firefox session.\n')
+This function calls these step steps as login1() and login2().
+
+TODO: When the server response isn't what we expect, we sys.exit(-1), but
+ideally this should raise an exception instead.
+
+Returns JWT or None.
+"""
+def login(email, password):
+    assert type(email) == str, 'Email must be a string'
+    assert type(password) == str, 'Password must be a string'
+
+    tokenid = login1(email, password)
+    if tokenid == None:
+        return None
+
+    return login2(tokenid)
+
+
+
+"""
+Login with email and password to retrieve the tokenId value.
+
+Return tokenid or None
+"""
+def login1(email, password):
+    assert type(email) == str, 'Email must be a string'
+    assert type(password) == str, 'Password must be a string'
+
+    tokenid = None
+
+    authrequest = {
+            'username'        : email,
+            'password'        : password,
+            'rememberMe'      : False,
+            'usernameEncoded' : False,
+            'retry'           : False
+    }
+
+    authheader = {
+            'Content-Type' : 'application/json'
+    }
+
+    url = 'https://auth.weightwatchers.com/login-apis/v1/authenticate'
+    response = requests.post(url, headers=authheader, json=authrequest)
+    if (response.status_code != 200):
+        sys.stderr.write(f'ERROR: Invalid response from login endpoint ({response.status_code}). ')
+        sys.stderr.write('Make sure you have the correct email and password.\n')
         sys.exit(-1)
 
-    if len(sys.argv) == 5 and (sys.argv[4] == '--nutrition' or sys.argv[4] == '-n'):
+    try:
+        responsedata = json.loads(response.content)
+        tokenid = responsedata['data']['tokenId']
+    except ValueError:
+        sys.stderr.write('ERROR: Missing tokenId in response data (API changed?)\n')
+        sys.exit(-1)
+
+    return tokenid
+
+
+"""
+Complete step 2 of login with tokenid as wwAuth2 cookie.
+
+Return id_token/JWT.
+"""
+def login2(tokenid):
+    assert type(tokenid) == str, 'tokenid must be a string'
+
+    nonce = hex(random.getrandbits(128))[2:]
+    url = f'https://auth.weightwatchers.com/openam/oauth2/authorize?response_type=id_token&client_id=webCMX&redirect_uri=https%3A%2F%2Fcmx.weightwatchers.com%2Fauth&nonce={nonce}'
+    cookies = {
+        'wwAuth2': f'{tokenid}'
+    }
+
+    response = requests.get(url, cookies=cookies, allow_redirects=False)
+    if (response.status_code != 302):
+        sys.stderr.write('ERROR: Unexpected response status code from authorize endpoint (API changed?)\n')
+        exit(-1)
+
+    # The redirect location has the JWT
+    redirecturl = response.headers['Location']
+    responsedata = dict(parse.parse_qsl(parse.urlsplit(redirecturl).fragment))
+    return responsedata['id_token']
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-E', '--email', help='Specify the login email address')
+    group.add_argument('-J', '--jwt', help='Specify the JWT')
+    parser.add_argument('-s', '--start', required=True, help='Start date as YYYY-MM-DD')
+    parser.add_argument('-e', '--end', required=True, help='End date as YYYY-MM-DD')
+    parser.add_argument('-n', '--nutrition', help='Produce a CSV report of nutritional data')
+    args = parser.parse_args()
+
+    if (args.email == None and args.jwt == None):
+        sys.stderr.write('ERROR: Must specify the login email address with -E or a JWT with -J.\n')
+        parser.print_help()
+        sys.exit(1)
+
+
+    # Parse the easy stuff first
+    startdate = datetime.date(*map(int, args.start.split('-')))
+    enddate = datetime.date(*map(int, args.end.split('-')))
+
+    # Get password for interactive login, or use JWT
+    if (args.email != None):
+        # User specified email; if % is included, split for email and password
+        # I stole this convention from the SAMBA project (smbclient, rpcclient)
+        if '%' in args.email:
+            email, password = args.email.split('%')
+        else:
+            # Read password from STDIN
+            password = getpass.getpass()
+            email = args.email
+        if len(password) < 8 or len(password) > 20:
+            sys.stderr.write('ERROR: Password must be between 8 and 20 characters\n')
+            parser.print_help()
+            sys.exit(-1)
+
+        # Get the JWT
+        jwt = login(email, password)
+    else:
+        # Allow JWT to include 'Bearer ' prefix
+        if (args.jwt[0:7] == 'Bearer '):
+            jwt = args.jwt[7:]
+        else:
+            jwt = args.jwt
+
+        # Email is not supplied when authenticating with JWT
+        email = None
+
+    if (checkjwt(jwt) == False):
+        sys.stderr.write('ERROR: Invalid JWT. Double-check the JWT specified with -J.\n')
+        sys.exit(-1)
+
+    if args.nutrition:
         requestnutrition = True
         nutritionarr = []
     else:
@@ -190,10 +324,16 @@ if __name__ == '__main__':
 
     authheader = {'Authorization': f'Bearer {jwt}'}
 
-    print(f'# Weight Watchers Tracked Food Report\n\n> {sys.argv[1]} - {sys.argv[2]}\n')
+    # Start generating the Markdown report
+    if (email != None):
+        print(f'# Weight Watchers Tracked Food Report for {email}\n\n> {args.start} - {args.end}\n')
+    else:
+        print(f'# Weight Watchers Tracked Food Report\n\n> {args.start} - {args.end}\n')
 
     for date in daterange(startdate, enddate):
-        url = f'{ENDPOINT}/{date}'
+        # WW API endpoint with date at the end in the format YYYY-MM-DD
+        endpointurl = 'https://cmx.weightwatchers.com/api/v3/cmx/operations/composed/members/~/my-day'
+        url = f'{endpointurl}/{date}'
         response = requests.get(url, headers=authheader)
         if (response.status_code != 200):
             sys.stderr.write(f'ERROR: Invalid response from weightwatchers.com API ({response.status_code}). ')
@@ -201,31 +341,31 @@ if __name__ == '__main__':
             exit(-1)
 
         trackedday = json.loads(response.content)
-        print(f'\n\n## {date}')
+        print(f'\n## {date}')
 
         try:
-            print('\n### Breakfast')
+            print('\n### Breakfast\n')
             morning = trackedday['today']['trackedFoods']['morning']
             printfood(morning)
         except KeyError:
             pass
 
         try:
-            print('\n### Lunch')
+            print('\n### Lunch\n')
             midday = trackedday['today']['trackedFoods']['midday']
             printfood(midday)
         except KeyError:
             pass
 
         try:
-            print('\n### Dinner')
+            print('\n### Dinner\n')
             evening = trackedday['today']['trackedFoods']['evening']
             printfood(evening)
         except KeyError:
             pass
 
         try:
-            print('\n### Snacks')
+            print('\n### Snacks\n')
             anytime = trackedday['today']['trackedFoods']['anytime']
             printfood(anytime)
         except KeyError:
