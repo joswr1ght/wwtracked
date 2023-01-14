@@ -59,10 +59,10 @@ Then you can open `myreport.md` in a text editor or a Markdown editor to get a f
 
 ### Getting Nutritional Information
 
-Run `wwtracked.py`, specifying the desired date range, the JWT, and add the argument '--nutrition' at the end:
+Run `wwtracked.py`, specifying the desired date range, email/JWT, and add the argument '--nutrition':
 
 ```
-$ python wwtracked.py 2022-12-20 2022-12-30 "Bearer eyJ0eX...zqdVwoQ" --nutrition
+$ python wwtracked.py -s 2022-12-20 -e 2022-12-30 --email user@example.com --nutrition
 ```
 
 After the `wwtracked.py` script creates the Markdown report of tracked food, the nutritional data will then be saved to a CSV file.
