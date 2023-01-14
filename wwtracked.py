@@ -132,7 +132,10 @@ def writenutritiondata(nutritionarr):
     fields = ['Date', 'When', 'Food', 'Calories', 'Fat', 'Saturated Fat', 'Sodium', 'Carbohydrates', 'Fiber', 'Sugars',
               'Added Sugar', 'Protein']
 
-    filename = f'Nutrition Data {sys.argv[1]} to {sys.argv[2]}.csv'
+    if startdate == enddate:
+        filename = f'Nutrition Data {startdate}.csv'
+    else:
+        filename = f'Nutrition Data {startdate} to {enddate}.csv'
 
     try:
         with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
