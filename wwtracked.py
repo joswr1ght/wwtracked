@@ -33,7 +33,6 @@ def printfood(foods):
     display the food name and portion (if available) as a Markdown
     bulleted item.
     """
-    pdb.set_trace()
     assert type(foods) == list, 'foods must be a list'
 
     for food in foods:
