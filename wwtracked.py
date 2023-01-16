@@ -61,7 +61,7 @@ def getfoodentrynutrition(foodentry):
     food entry by matching the serving type of the entry to the nutritional
     data from WW and multiplying by the entry serving size. Returns dict of data
     """
-    assert type(foodentry) == list, 'foodentry must be a list'
+    assert type(foodentry) == dict, 'foodentry must be a dict'
 
     if foodentry['sourceType'] != 'MEMBERFOODQUICK':  # ignore quick add items
         data = {'name': foodentry['name'], 'id': foodentry['_id'], 'entryId': foodentry['entryId'],
