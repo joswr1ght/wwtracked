@@ -6,17 +6,17 @@ import requests
 import json
 import csv
 import random
-import logging
+# import logging
 import getpass
 import argparse
 from urllib import parse
 import pdb
 
 
-"""
-Return a list of date strings in the format YYYY-MM-DD
-"""
 def daterange(date1, date2):
+    """
+    Return a list of date strings in the format YYYY-MM-DD
+    """
     assert type(date1) == datetime.date, 'Dates must be datetime.date objects'
     assert type(date2) == datetime.date, 'Dates must be datetime.date objects'
 
@@ -27,12 +27,13 @@ def daterange(date1, date2):
     return dates
 
 
-"""
-Using the food elements for morning, midday, evening, or anytime,
-display the food name and portion (if available) as a Markdown
-bulleted item.
-"""
 def printfood(foods):
+    """
+    Using the food elements for morning, midday, evening, or anytime,
+    display the food name and portion (if available) as a Markdown
+    bulleted item.
+    """
+    pdb.set_trace()
     assert type(foods) == list, 'foods must be a list'
 
     for food in foods:
@@ -55,31 +56,32 @@ def printfood(foods):
         print(f'* {foodname}{suffix}')
 
 
-
-"""
-Takes the food entry passed to it and calculates the nutrition of the 
-food entry by matching the serving type of the entry to the nutritional
-data from WW and multiplying by the entry serving size. Returns dict of data  
-"""
 def getfoodentrynutrition(foodentry):
+    """
+    Takes the food entry passed to it and calculates the nutrition of the
+    food entry by matching the serving type of the entry to the nutritional
+    data from WW and multiplying by the entry serving size. Returns dict of data
+    """
+    assert type(foodentry) == list, 'foodentry must be a list'
+
     if foodentry['sourceType'] != 'MEMBERFOODQUICK':  # ignore quick add items
         data = {'name': foodentry['name'], 'id': foodentry['_id'], 'entryId': foodentry['entryId'],
                 'trackedDate': foodentry['trackedDate'], 'timeOfDay': foodentry['timeOfDay'],
-                'sourceType': foodentry['sourceType'], 'portionName': "", 'portionSize': foodentry['portionSize'],
+                'sourceType': foodentry['sourceType'], 'portionName': '', 'portionSize': foodentry['portionSize'],
                 'calories': 0, 'fat': 0, 'saturatedFat': 0, 'sodium': 0, 'carbs': 0, 'fiber': 0, 'sugar': 0,
                 'addedSugar': 0, 'protein': 0}
 
         # Different types of entries have different API endpoints
-        urlprefix = {"WWFOOD": "https://cmx.weightwatchers.com/api/v3/public/foods/",
-                     "MEMBERFOOD": "https://cmx.weightwatchers.com/api/v3/cmx/members/~/custom-foods/foods/",
-                     "WWVENDORFOOD": "https://cmx.weightwatchers.com/api/v3/public/foods/",
-                     "MEMBERRECIPE": "https://cmx.weightwatchers.com/api/v3/cmx/members/~/custom-foods/recipes/",
-                     "WWRECIPE": "https://cmx.weightwatchers.com/api/v3/public/recipes/"}
+        urlprefix = {'WWFOOD': 'https://cmx.weightwatchers.com/api/v3/public/foods/',
+                     'MEMBERFOOD': 'https://cmx.weightwatchers.com/api/v3/cmx/members/~/custom-foods/foods/',
+                     'WWVENDORFOOD': 'https://cmx.weightwatchers.com/api/v3/public/foods/',
+                     'MEMBERRECIPE': 'https://cmx.weightwatchers.com/api/v3/cmx/members/~/custom-foods/recipes/',
+                     'WWRECIPE': 'https://cmx.weightwatchers.com/api/v3/public/recipes/'}
 
         entryurl = f'{urlprefix[foodentry["sourceType"]]}{foodentry["_id"]}?fullDetails=true'
 
         # Recipes must be handled differently
-        if "RECIPE" in foodentry["sourceType"]:
+        if 'RECIPE' in foodentry['sourceType']:
             recipe = True
             data['portionName'] = 'serving(s)'
             foodnutrition = requests.get(entryurl, headers=authheader).json()
@@ -88,21 +90,21 @@ def getfoodentrynutrition(foodentry):
             data['portionName'] = foodentry['portionName']
             foodnutrition = requests.get(entryurl, headers=authheader).json()['portions']
 
-        size = data["portionSize"]  # portion size applies to both recipes and non-recipe entries
+        size = data['portionSize']  # portion size applies to both recipes and non-recipe entries
 
         while True and not recipe:
             for nutrition in foodnutrition:
                 # match entry serving type (oz, g, cups, etc) to correct nutritional data type from WW API
-                if nutrition['name'] == foodentry["portionName"]:
-                    data["calories"] = round(nutrition['nutrition']['calories'] / nutrition['size'] * size)
-                    data["fat"] = round(nutrition['nutrition']['fat'] / nutrition['size'] * size, 1)
-                    data["saturatedFat"] = round(nutrition['nutrition']['saturatedFat'] / nutrition['size'] * size, 1)
-                    data["sodium"] = round(nutrition['nutrition']['sodium'] / nutrition['size'] * size, 1)
-                    data["carbs"] = round(nutrition['nutrition']['carbs'] / nutrition['size'] * size, 1)
-                    data["fiber"] = round(nutrition['nutrition']['fiber'] / nutrition['size'] * size, 1)
-                    data["sugar"] = round(nutrition['nutrition']['sugar'] / nutrition['size'] * size, 1)
-                    data["addedSugar"] = round(nutrition['nutrition']['addedSugar'] / nutrition['size'] * size, 1)
-                    data["protein"] = round(nutrition['nutrition']['protein'] / nutrition['size'] * size, 1)
+                if nutrition['name'] == foodentry['portionName']:
+                    data['calories'] = round(nutrition['nutrition']['calories'] / nutrition['size'] * size)
+                    data['fat'] = round(nutrition['nutrition']['fat'] / nutrition['size'] * size, 1)
+                    data['saturatedFat'] = round(nutrition['nutrition']['saturatedFat'] / nutrition['size'] * size, 1)
+                    data['sodium'] = round(nutrition['nutrition']['sodium'] / nutrition['size'] * size, 1)
+                    data['carbs'] = round(nutrition['nutrition']['carbs'] / nutrition['size'] * size, 1)
+                    data['fiber'] = round(nutrition['nutrition']['fiber'] / nutrition['size'] * size, 1)
+                    data['sugar'] = round(nutrition['nutrition']['sugar'] / nutrition['size'] * size, 1)
+                    data['addedSugar'] = round(nutrition['nutrition']['addedSugar'] / nutrition['size'] * size, 1)
+                    data['protein'] = round(nutrition['nutrition']['protein'] / nutrition['size'] * size, 1)
                     break
             break  # in case for some reason there is no match
 
@@ -112,23 +114,25 @@ def getfoodentrynutrition(foodentry):
                                             foodnutrition['servingSize'] * size
 
             for ingredient in foodnutrition['ingredients']:
-                data["calories"] += round(ingredientnutrition('calories'))
-                data["fat"] += round(ingredientnutrition('fat'), 1)
-                data["saturatedFat"] += round(ingredientnutrition('saturatedFat'), 1)
-                data["sodium"] += round(ingredientnutrition('sodium'), 1)
-                data["carbs"] += round(ingredientnutrition('carbs'), 1)
-                data["fiber"] += round(ingredientnutrition('fiber'), 1)
-                data["sugar"] += round(ingredientnutrition('sugar'), 1)
-                data["addedSugar"] += round(ingredientnutrition('addedSugar'), 1)
-                data["protein"] += round(ingredientnutrition('protein'), 1)
+                data['calories'] += round(ingredientnutrition('calories'))
+                data['fat'] += round(ingredientnutrition('fat'), 1)
+                data['saturatedFat'] += round(ingredientnutrition('saturatedFat'), 1)
+                data['sodium'] += round(ingredientnutrition('sodium'), 1)
+                data['carbs'] += round(ingredientnutrition('carbs'), 1)
+                data['fiber'] += round(ingredientnutrition('fiber'), 1)
+                data['sugar'] += round(ingredientnutrition('sugar'), 1)
+                data['addedSugar'] += round(ingredientnutrition('addedSugar'), 1)
+                data['protein'] += round(ingredientnutrition('protein'), 1)
 
         return data
 
 
-"""
-Takes the array of food nutrition dictionaries and writes to CSV  
-"""
 def writenutritiondata(nutritionarr):
+    """
+    Takes the array of food nutrition dictionaries and writes to CSV
+    """
+    assert type(nutritionarr) == list, 'nutritionarr must be a list'
+
     fields = ['Date', 'When', 'Food', 'Calories', 'Fat', 'Saturated Fat', 'Sodium', 'Carbohydrates', 'Fiber', 'Sugars',
               'Added Sugar', 'Protein']
 
@@ -153,10 +157,10 @@ def writenutritiondata(nutritionarr):
         sys.stderr.write(f'ERROR: Could not save nutrition data, ensure "{filename}" is not already open.\n')
 
 
-"""
-Validate JWT. Return False if not valid.
-"""
 def checkjwt(jwt):
+    """
+    Validate JWT. Return False if not valid.
+    """
     assert type(jwt) == str, 'JWT must be type str'
 
     if jwt[0:3] != 'eyJ' and jwt[0:10] != 'Bearer eyJ':
@@ -169,60 +173,59 @@ def checkjwt(jwt):
     return True
 
 
-"""
-Login to the WW website and return the JWT using the email address and password.
-
-The WW login process requires 2 steps:
-
-    1. Send email and password in JSON POST to
-       auth.weightwatchers.com/login-apis/v1/authenticate.  In the server
-       response, obtain the tokenId in the body response JSON blob.
-    2. Send tokenId value as `wwAuth2` cookie in GET request to
-       https://auth.weightwatchers.com/openam/oauth2/authorize with several URL
-       parameters including a client-side selected nonce.  Server will return a
-       HTTP/302 Found response with a Location header. The id_token parameter in
-       the Location header is the JWT used for subsequent API access.
-
-This function calls these step steps as login1() and login2().
-
-TODO: When the server response isn't what we expect, we sys.exit(-1), but
-ideally this should raise an exception instead.
-
-Returns JWT or None.
-"""
 def login(email, password):
+    """
+    Login to the WW website and return the JWT using the email address and password.
+
+    The WW login process requires 2 steps:
+
+        1. Send email and password in JSON POST to
+           auth.weightwatchers.com/login-apis/v1/authenticate.  In the server
+           response, obtain the tokenId in the body response JSON blob.
+        2. Send tokenId value as `wwAuth2` cookie in GET request to
+           https://auth.weightwatchers.com/openam/oauth2/authorize with several URL
+           parameters including a client-side selected nonce.  Server will return a
+           HTTP/302 Found response with a Location header. The id_token parameter in
+           the Location header is the JWT used for subsequent API access.
+
+    This function calls these step steps as login1() and login2().
+
+    TODO: When the server response isn't what we expect, we sys.exit(-1), but
+    ideally this should raise an exception instead.
+
+    Returns JWT or None.
+    """
     assert type(email) == str, 'Email must be a string'
     assert type(password) == str, 'Password must be a string'
 
     tokenid = login1(email, password)
-    if tokenid == None:
+    if tokenid is None:
         return None
 
     return login2(tokenid)
 
 
-
-"""
-Login with email and password to retrieve the tokenId value.
-
-Return tokenid or None
-"""
 def login1(email, password):
+    """
+    Login with email and password to retrieve the tokenId value.
+
+    Return tokenid or None
+    """
     assert type(email) == str, 'Email must be a string'
     assert type(password) == str, 'Password must be a string'
 
     tokenid = None
 
     authrequest = {
-            'username'        : email,
-            'password'        : password,
-            'rememberMe'      : False,
-            'usernameEncoded' : False,
-            'retry'           : False
+            'username': email,
+            'password': password,
+            'rememberMe': False,
+            'usernameEncoded': False,
+            'retry': False
     }
 
     authheader = {
-            'Content-Type' : 'application/json'
+            'Content-Type': 'application/json'
     }
 
     url = 'https://auth.weightwatchers.com/login-apis/v1/authenticate'
@@ -242,16 +245,17 @@ def login1(email, password):
     return tokenid
 
 
-"""
-Complete step 2 of login with tokenid as wwAuth2 cookie.
-
-Return id_token/JWT.
-"""
 def login2(tokenid):
+    """
+    Complete step 2 of login with tokenid as wwAuth2 cookie.
+
+    Return id_token/JWT.
+    """
     assert type(tokenid) == str, 'tokenid must be a string'
 
     nonce = hex(random.getrandbits(128))[2:]
-    url = f'https://auth.weightwatchers.com/openam/oauth2/authorize?response_type=id_token&client_id=webCMX&redirect_uri=https%3A%2F%2Fcmx.weightwatchers.com%2Fauth&nonce={nonce}'
+    url = (f'https://auth.weightwatchers.com/openam/oauth2/authorize?response_type=id_token&'
+           f'client_id=webCMX&redirect_uri=https%3A%2F%2Fcmx.weightwatchers.com%2Fauth&nonce={nonce}')
     cookies = {
         'wwAuth2': f'{tokenid}'
     }
@@ -278,18 +282,18 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--nutrition', action='store_true', help='Produce a CSV report of nutritional data')
     args = parser.parse_args()
 
-    if (args.email == None and args.jwt == None):
+    if (args.email is None and args.jwt is None):
         sys.stderr.write('ERROR: Must specify the login email address with -E or a JWT with -J.\n')
         parser.print_help()
         sys.exit(1)
 
-
     # Parse the easy stuff first
+    pdb.set_trace()
     startdate = datetime.date(*map(int, args.start.split('-')))
     enddate = datetime.date(*map(int, args.end.split('-')))
 
     # Get password for interactive login, or use JWT
-    if (args.email != None):
+    if (args.email is not None):
         # User specified email; if % is included, split for email and password
         # I stole this convention from the SAMBA project (smbclient, rpcclient)
         if '%' in args.email:
@@ -315,7 +319,7 @@ if __name__ == '__main__':
         # Email is not supplied when authenticating with JWT
         email = None
 
-    if (checkjwt(jwt) == False):
+    if (checkjwt(jwt) is False):
         sys.stderr.write('ERROR: Invalid JWT. Double-check the JWT specified with -J.\n')
         sys.exit(-1)
 
@@ -328,7 +332,7 @@ if __name__ == '__main__':
     authheader = {'Authorization': f'Bearer {jwt}'}
 
     # Start generating the Markdown report
-    if (email != None):
+    if (email is not None):
         print(f'# Weight Watchers Tracked Food Report for {email}\n\n> {args.start} - {args.end}\n')
     else:
         print(f'# Weight Watchers Tracked Food Report\n\n> {args.start} - {args.end}\n')
