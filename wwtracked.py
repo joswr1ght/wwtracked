@@ -10,7 +10,7 @@ import random
 import getpass
 import argparse
 from urllib import parse
-import pdb
+# import pdb
 
 
 def daterange(date1, date2):
@@ -288,9 +288,11 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Parse the easy stuff first
-    pdb.set_trace()
     startdate = datetime.date(*map(int, args.start.split('-')))
     enddate = datetime.date(*map(int, args.end.split('-')))
+    if (startdate > enddate):
+        sys.stderr.write('ERROR: Start date cannot follow end date.\n')
+        sys.exit(-1)
 
     # Get password for interactive login, or use JWT
     if (args.email is not None):
