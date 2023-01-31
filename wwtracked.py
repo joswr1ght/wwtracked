@@ -92,25 +92,38 @@ def getfoodentrynutrition(foodentry):
         size = data['portionSize']  # portion size applies to both recipes and non-recipe entries
 
         while True and not recipe:
+
+            def nutritioncalculation(x):
+                try:
+                    return nutrition['nutrition'][x] / nutrition['size'] * size
+                except KeyError:
+                    # nutrition info missing
+                    return 0
+
             for nutrition in foodnutrition:
                 # match entry serving type (oz, g, cups, etc) to correct nutritional data type from WW API
                 if nutrition['name'] == foodentry['portionName']:
-                    data['calories'] = round(nutrition['nutrition']['calories'] / nutrition['size'] * size)
-                    data['fat'] = round(nutrition['nutrition']['fat'] / nutrition['size'] * size, 1)
-                    data['saturatedFat'] = round(nutrition['nutrition']['saturatedFat'] / nutrition['size'] * size, 1)
-                    data['sodium'] = round(nutrition['nutrition']['sodium'] / nutrition['size'] * size, 1)
-                    data['carbs'] = round(nutrition['nutrition']['carbs'] / nutrition['size'] * size, 1)
-                    data['fiber'] = round(nutrition['nutrition']['fiber'] / nutrition['size'] * size, 1)
-                    data['sugar'] = round(nutrition['nutrition']['sugar'] / nutrition['size'] * size, 1)
-                    data['addedSugar'] = round(nutrition['nutrition']['addedSugar'] / nutrition['size'] * size, 1)
-                    data['protein'] = round(nutrition['nutrition']['protein'] / nutrition['size'] * size, 1)
+                    data['calories'] = round(nutritioncalculation('calories'))
+                    data['fat'] = round(nutritioncalculation('fat'), 1)
+                    data['saturatedFat'] = round(nutritioncalculation('saturatedFat'), 1)
+                    data['sodium'] = round(nutritioncalculation('sodium'), 1)
+                    data['carbs'] = round(nutritioncalculation('carbs'), 1)
+                    data['fiber'] = round(nutritioncalculation('fiber'), 1)
+                    data['sugar'] = round(nutritioncalculation('sugar'), 1)
+                    data['addedSugar'] = round(nutritioncalculation('addedSugar'), 1)
+                    data['protein'] = round(nutritioncalculation('protein'), 1)
                     break
             break  # in case for some reason there is no match
 
         if recipe:
-            def ingredientnutrition(x): return ingredient['itemDetail']['portions'][0]['nutrition'][x] / \
+            def ingredientnutrition(x):
+                try:
+                    return ingredient['itemDetail']['portions'][0]['nutrition'][x] / \
                                             ingredient['itemDetail']['portions'][0]['size'] * ingredient['quantity'] / \
                                             foodnutrition['servingSize'] * size
+                except KeyError:
+                    # nutrition info missing
+                    return 0
 
             for ingredient in foodnutrition['ingredients']:
                 data['calories'] += round(ingredientnutrition('calories'))
