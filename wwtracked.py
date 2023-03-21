@@ -12,6 +12,7 @@ import argparse
 from urllib import parse
 # import pdb
 
+tld = 'com'
 
 def daterange(date1, date2):
     """
@@ -62,7 +63,7 @@ def getfoodentrynutrition(foodentry):
     data from WW and multiplying by the entry serving size. Returns dict of data
     """
     assert type(foodentry) == dict, 'foodentry must be a dict'
-
+    # print(foodentry['sourceType'])
     if foodentry['sourceType'] != 'MEMBERFOODQUICK':  # ignore quick add items
         data = {'name': foodentry['name'], 'id': foodentry['_id'], 'entryId': foodentry['entryId'],
                 'trackedDate': foodentry['trackedDate'], 'timeOfDay': foodentry['timeOfDay'],
@@ -71,11 +72,11 @@ def getfoodentrynutrition(foodentry):
                 'addedSugar': 0, 'protein': 0}
 
         # Different types of entries have different API endpoints
-        urlprefix = {'WWFOOD': 'https://cmx.weightwatchers.com/api/v3/public/foods/',
-                     'MEMBERFOOD': 'https://cmx.weightwatchers.com/api/v3/cmx/members/~/custom-foods/foods/',
-                     'WWVENDORFOOD': 'https://cmx.weightwatchers.com/api/v3/public/foods/',
-                     'MEMBERRECIPE': 'https://cmx.weightwatchers.com/api/v3/cmx/members/~/custom-foods/recipes/',
-                     'WWRECIPE': 'https://cmx.weightwatchers.com/api/v3/public/recipes/'}
+        urlprefix = {'WWFOOD': f'https://cmx.weightwatchers.{tld}/api/v3/public/foods/',
+                     'MEMBERFOOD': f'https://cmx.weightwatchers.{tld}/api/v3/cmx/members/~/custom-foods/foods/',
+                     'WWVENDORFOOD': f'https://cmx.weightwatchers.{tld}/api/v3/public/foods/',
+                     'MEMBERRECIPE': f'https://cmx.weightwatchers.{tld}/api/v3/cmx/members/~/custom-foods/recipes/',
+                     'WWRECIPE': f'https://cmx.weightwatchers.{tld}/api/v3/public/recipes/'}
 
         entryurl = f'{urlprefix[foodentry["sourceType"]]}{foodentry["_id"]}?fullDetails=true'
 
@@ -159,6 +160,8 @@ def writenutritiondata(nutritionarr):
             csvwriter.writerow(fields)
 
             for item in nutritionarr:
+                if item is None:
+                    continue
                 name = f'{item["name"]}, {item["portionSize"]} {item["portionName"]}'
                 csvwriter.writerow([item['trackedDate'], item['timeOfDay'], name, item['calories'],
                                     item['fat'], item['saturatedFat'], item['sodium'], item['carbs'], item['fiber'],
@@ -188,9 +191,7 @@ def checkjwt(jwt):
 def login(email, password):
     """
     Login to the WW website and return the JWT using the email address and password.
-
     The WW login process requires 2 steps:
-
         1. Send email and password in JSON POST to
            auth.weightwatchers.com/login-apis/v1/authenticate.  In the server
            response, obtain the tokenId in the body response JSON blob.
@@ -199,12 +200,9 @@ def login(email, password):
            parameters including a client-side selected nonce.  Server will return a
            HTTP/302 Found response with a Location header. The id_token parameter in
            the Location header is the JWT used for subsequent API access.
-
     This function calls these step steps as login1() and login2().
-
     TODO: When the server response isn't what we expect, we sys.exit(-1), but
     ideally this should raise an exception instead.
-
     Returns JWT or None.
     """
     assert type(email) == str, 'Email must be a string'
@@ -220,7 +218,6 @@ def login(email, password):
 def login1(email, password):
     """
     Login with email and password to retrieve the tokenId value.
-
     Return tokenid or None
     """
     assert type(email) == str, 'Email must be a string'
@@ -240,7 +237,7 @@ def login1(email, password):
             'Content-Type': 'application/json'
     }
 
-    url = 'https://auth.weightwatchers.com/login-apis/v1/authenticate'
+    url = f'https://auth.weightwatchers.{tld}/login-apis/v1/authenticate'
     response = requests.post(url, headers=authheader, json=authrequest)
     if (response.status_code != 200):
         sys.stderr.write(f'ERROR: Invalid response from login endpoint ({response.status_code}). ')
@@ -260,14 +257,13 @@ def login1(email, password):
 def login2(tokenid):
     """
     Complete step 2 of login with tokenid as wwAuth2 cookie.
-
     Return id_token/JWT.
     """
     assert type(tokenid) == str, 'tokenid must be a string'
 
     nonce = hex(random.getrandbits(128))[2:]
-    url = (f'https://auth.weightwatchers.com/openam/oauth2/authorize?response_type=id_token&'
-           f'client_id=webCMX&redirect_uri=https%3A%2F%2Fcmx.weightwatchers.com%2Fauth&nonce={nonce}')
+    url = (f'https://auth.weightwatchers.{tld}/openam/oauth2/authorize?response_type=id_token&'
+           f'client_id=webCMX&redirect_uri=https%3A%2F%2Fcmx.weightwatchers.{tld}%2Fauth&nonce={nonce}')
     cookies = {
         'wwAuth2': f'{tokenid}'
     }
@@ -282,7 +278,6 @@ def login2(tokenid):
     responsedata = dict(parse.parse_qsl(parse.urlsplit(redirecturl).fragment))
     return responsedata['id_token']
 
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -292,6 +287,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--start', required=True, help='Start date as YYYY-MM-DD')
     parser.add_argument('-e', '--end', required=True, help='End date as YYYY-MM-DD')
     parser.add_argument('-n', '--nutrition', action='store_true', help='Produce a CSV report of nutritional data')
+    parser.add_argument('-l', '--tld', default='com', help='Specify the top-level domain (com, co.uk, etc.) to use for login and API endpoints')
     args = parser.parse_args()
 
     if (args.email is None and args.jwt is None):
@@ -333,6 +329,9 @@ if __name__ == '__main__':
         # Email is not supplied when authenticating with JWT
         email = None
 
+    if (args.tld is not None):
+        tld = args.tld
+
     if (checkjwt(jwt) is False):
         sys.stderr.write('ERROR: Invalid JWT. Double-check the JWT specified with -J.\n')
         sys.exit(-1)
@@ -353,7 +352,7 @@ if __name__ == '__main__':
 
     for date in daterange(startdate, enddate):
         # WW API endpoint with date at the end in the format YYYY-MM-DD
-        endpointurl = 'https://cmx.weightwatchers.com/api/v3/cmx/operations/composed/members/~/my-day'
+        endpointurl = f'https://cmx.weightwatchers.{tld}/api/v3/cmx/operations/composed/members/~/my-day'
         url = f'{endpointurl}/{date}'
         response = requests.get(url, headers=authheader)
         if (response.status_code != 200):
